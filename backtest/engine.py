@@ -10,8 +10,10 @@ from data.loader import TRAIN_END
 
 logger = logging.getLogger(__name__)
 
-_METRIC_KEYS = ("sharpe", "max_drawdown", "profit_factor", "num_trades",
-                "win_rate", "total_return", "cagr", "calmar")
+_METRIC_KEYS = (
+    "sharpe", "max_drawdown", "profit_factor", "num_trades",
+    "win_rate", "total_return", "cagr", "calmar", "buy_hold_return",
+)
 
 
 def _empty_metrics() -> dict:
@@ -20,22 +22,31 @@ def _empty_metrics() -> dict:
 
 def _extract_metrics(stats) -> dict:
     def _get(key, default=np.nan):
-        v = stats.get(key, default)
-        return v if v is not None else default
+        try:
+            v = stats[key]
+        except (KeyError, TypeError):
+            return default
+        return v if v is not None and not (isinstance(v, float) and np.isnan(v)) else default
 
     max_dd = _get("Max. Drawdown [%]")
     if not np.isnan(max_dd):
-        max_dd = abs(max_dd)  # backtesting.py returns negative value
+        max_dd = abs(max_dd)
+
+    # CAGR key varies by backtesting.py version
+    cagr = _get("CAGR [%]")
+    if np.isnan(cagr):
+        cagr = _get("Return (Ann.) [%]")
 
     return {
-        "sharpe":        _get("Sharpe Ratio"),
-        "max_drawdown":  max_dd,
-        "profit_factor": _get("Profit Factor"),
-        "num_trades":    _get("# Trades", 0),
-        "win_rate":      _get("Win Rate [%]"),
-        "total_return":  _get("Return [%]"),
-        "cagr":          _get("CAGR [%]"),
-        "calmar":        _get("Calmar Ratio"),
+        "sharpe":          _get("Sharpe Ratio"),
+        "max_drawdown":    max_dd,
+        "profit_factor":   _get("Profit Factor"),
+        "num_trades":      _get("# Trades", 0),
+        "win_rate":        _get("Win Rate [%]"),
+        "total_return":    _get("Return [%]"),
+        "cagr":            cagr,
+        "calmar":          _get("Calmar Ratio"),
+        "buy_hold_return": _get("Buy & Hold Return [%]"),
     }
 
 
@@ -75,6 +86,50 @@ def run_single_backtest(
         return _empty_metrics()
 
 
+def run_oos_backtest(
+    strategy_class,
+    df: pd.DataFrame,
+    params: dict | None = None,
+    cash: float = 10_000,
+    slippage: float = 0.0005,
+) -> tuple[dict, pd.DataFrame, pd.DataFrame]:
+    """
+    Run a backtest and return (metrics, trades_df, equity_df).
+    Used for OOS final analysis — returns full detail, not just scalars.
+    """
+    _empty_df = pd.DataFrame()
+
+    if df is None or df.empty or len(df) < 10:
+        return _empty_metrics(), _empty_df, _empty_df
+
+    try:
+        bt = Backtest(
+            df,
+            strategy_class,
+            cash=cash,
+            commission=slippage,
+            exclusive_orders=True,
+            finalize_trades=True,
+        )
+        stats = _run_bt(bt, **(params or {}))
+        metrics = _extract_metrics(stats)
+
+        try:
+            trades = stats["_trades"].copy()
+        except (KeyError, TypeError):
+            trades = _empty_df
+
+        try:
+            equity = stats["_equity_curve"].copy()
+        except (KeyError, TypeError):
+            equity = _empty_df
+
+        return metrics, trades, equity
+    except Exception as exc:
+        logger.warning("run_oos_backtest failed (%s): %s", strategy_class.__name__, exc)
+        return _empty_metrics(), _empty_df, _empty_df
+
+
 def run_walk_forward(
     strategy_class,
     df: pd.DataFrame,
@@ -89,8 +144,8 @@ def run_walk_forward(
     """
     Walk-forward analysis: optimize on train window, evaluate on test window.
 
-    The function caps the data at TRAIN_END (2025-06-30) — OOS final data
-    (2025-07-01 onwards) is never touched here.
+    The function caps the data at TRAIN_END — OOS final data is never touched here.
+    Params are chosen by best Sharpe on TRAIN (no leakage into test).
     """
     if df is None or df.empty:
         return pd.DataFrame()
@@ -102,11 +157,8 @@ def run_walk_forward(
     if df.empty:
         return pd.DataFrame()
 
-    # Align fold start to beginning of first full month in the data
     first_bar = df.index[0]
     fold_start = first_bar.normalize().replace(day=1)
-    if fold_start < first_bar.normalize():
-        fold_start = fold_start
 
     folds = []
 
@@ -115,7 +167,6 @@ def run_walk_forward(
         test_start = train_end
         test_end   = test_start + pd.DateOffset(months=test_months)
 
-        # Stop when test window starts beyond available data
         if test_start >= df.index[-1]:
             break
 
@@ -126,7 +177,7 @@ def run_walk_forward(
             fold_start += pd.DateOffset(months=step_months)
             continue
 
-        # Optimize on train to find best params
+        # Optimize on TRAIN — pick best Sharpe in TRAIN (no leakage)
         best_params: dict = {}
         if param_grid:
             try:
@@ -150,7 +201,7 @@ def run_walk_forward(
                     len(folds) + 1, strategy_class.__name__, exc,
                 )
 
-        # Evaluate test fold with best params
+        # Evaluate test fold with best params from TRAIN
         test_metrics = run_single_backtest(
             strategy_class, df_test, params=best_params,
             cash=cash, slippage=slippage,
@@ -174,5 +225,8 @@ def run_walk_forward(
 
 def _maximize_sharpe(stats) -> float:
     """Maximize function for bt.optimize(): returns Sharpe or -inf on NaN."""
-    s = stats.get("Sharpe Ratio", np.nan)
+    try:
+        s = stats["Sharpe Ratio"]
+    except (KeyError, TypeError):
+        return -np.inf
     return float(s) if not pd.isna(s) else -np.inf

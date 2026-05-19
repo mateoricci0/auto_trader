@@ -1,89 +1,113 @@
-# auto_trader — Fase 0: Investigación de Estrategias Base
+# auto_trader — Fase 0: Backtesting Sistemático
 
-Sistema de trading algorítmico para acciones US. Fase 0 es backtesting puro sobre datos históricos, sin conexión a brokers ni APIs externas.
+> **Experimento educativo.** El objetivo es descubrir con datos reales si alguna estrategia
+> técnica clásica tiene ventaja estadística medible. Todo el testing posterior se realiza
+> en cuentas demo. **No es asesoramiento financiero.**
 
-## Objetivo de Fase 0
+**Fase actual:** 0 — Validación histórica  
+**Resultados:** ver `reports/RECOMENDACION.md` (generado tras ejecutar el pipeline)
 
-Validar sobre datos históricos qué estrategia técnica clásica (si alguna) cumple los filtros de aceptación mínimos para ser considerada en producción.
-
-**Filtros de aceptación (todos deben cumplirse en periodo out-of-sample):**
-- Sharpe ratio > 1.0
-- Máximo drawdown < 20%
-- Profit factor > 1.3
-- Número de operaciones ≥ 30
+---
 
 ## Activos evaluados
 
-| Ticker | Descripción |
-|--------|-------------|
-| SPY | S&P 500 ETF — benchmark de mercado |
-| AAPL | Apple — mega-cap tech |
-| NVDA | NVIDIA — alta volatilidad, momentum |
-| TSLA | Tesla — alta volatilidad, tendencias fuertes |
+| Ticker | Tipo | Razón |
+|---|---|---|
+| SPY | ETF S&P500 | Benchmark del mercado |
+| AAPL | Acción | Alta liquidez, blue-chip |
+| NVDA | Acción | Alta volatilidad, tendencia IA |
+| TSLA | Acción | Volatilidad extrema, testea robustez |
 
-## Estrategias a evaluar
+## Estrategias probadas (5)
 
-| Estrategia | Lógica |
-|------------|--------|
-| EMA Cross | Cruce de medias exponenciales (fast/slow) |
-| RSI Mean-Reversion | Compra en sobreventa, vende en sobrecompra |
-| Bollinger Breakout | Ruptura de banda superior con confirmación de volumen |
-| MACD Trend | Señal de cruce MACD sobre línea cero |
-| ATR Trailing | Stop trailing basado en ATR, trend-following |
+| Estrategia | Tipo |
+|---|---|
+| EMA Cross | Seguimiento de tendencia |
+| RSI Mean Reversion | Reversión a la media |
+| Bollinger Breakout | Momentum con volatilidad |
+| MACD Trend | Seguimiento de tendencia |
+| ATR Trailing Stop | Stop dinámico |
 
-## Instalación
+---
+
+## Cómo reproducir desde cero
 
 ```bash
 git clone https://github.com/mateoricci0/auto_trader.git
 cd auto_trader
-python -m venv venv
-source venv/bin/activate      # Linux/Mac
-venv\Scripts\activate         # Windows
 pip install -r requirements.txt
-```
 
-## Uso
-
-```bash
-# Descargar datos históricos
-python scripts/download_all.py
-
-# Ejecutar backtests con walk-forward
-python scripts/run_fase0.py
-
-# Análisis out-of-sample final
-python scripts/run_oos_final.py
-
-# Generar reporte HTML
-python scripts/build_report.py
+python scripts/download_all.py    # Descarga datos (SPY, AAPL, NVDA, TSLA)
+python scripts/run_fase0.py       # Walk-forward (~20-40 min)
+python scripts/run_oos_final.py   # Análisis OOS → reports/RECOMENDACION.md
+python scripts/build_report.py    # Reporte HTML interactivo
 ```
 
 ## Tests
 
 ```bash
-pytest
+python -m pytest tests/ -v
 ```
+
+---
 
 ## Estructura
 
 ```
 auto_trader/
-├── data/                    # parquet con datos históricos (gitignored)
-│   └── loader.py            # descarga y caché de datos
-├── strategies/              # una estrategia por archivo
-├── backtest/                # motor de backtest y walk-forward
-├── reports/                 # outputs HTML y parquet (gitignored excepto .gitkeep)
-├── tests/                   # tests unitarios
-├── notebooks/               # análisis exploratorio
-├── scripts/                 # scripts de ejecución
-├── docs/                    # metodología y decisiones de diseño
-├── .env.example             # variables de entorno requeridas (Fase 1+)
-├── requirements.txt
-├── pyproject.toml
-└── README.md
+├── data/
+│   ├── loader.py              # Descarga, caché y split train/OOS
+│   └── cache/                 # Parquets cacheados (gitignored)
+├── strategies/
+│   ├── base.py                # StrategyBase con position_size()
+│   ├── indicators.py          # EMA, ATR, RSI, MACD, Bollinger (pure pandas)
+│   └── ema_cross.py, ...      # Una estrategia por archivo
+├── backtest/
+│   ├── engine.py              # run_walk_forward, run_oos_backtest
+│   ├── grids.py               # Grids de parámetros
+│   └── metrics.py             # passes_filters, beats_buy_hold
+├── scripts/
+│   ├── download_all.py        # Descarga datos
+│   ├── run_fase0.py           # Walk-forward completo
+│   ├── run_oos_final.py       # OOS final + RECOMENDACION.md
+│   └── build_report.py        # Notebook → HTML
+├── notebooks/
+│   └── fase0_analisis.ipynb   # Análisis visual interactivo
+├── reports/
+│   └── RECOMENDACION.md       # Generado automáticamente
+├── docs/
+│   ├── METODOLOGIA.md         # Explicación de cada decisión técnica
+│   └── DECISIONES.md          # Por qué se eligió cada herramienta/activo
+└── tests/
 ```
+
+---
+
+## Filtros de aceptación (OOS final)
+
+| Filtro | Umbral |
+|---|---|
+| Sharpe Ratio | > 1.0 |
+| Max Drawdown | < 20% |
+| Profit Factor | > 1.3 |
+| Num Trades | ≥ 30 |
+| Supera Buy & Hold | sí (criterio adicional) |
+
+---
+
+## Limitaciones conocidas
+
+- Datos `1h` limitados a ~730 días (límite de yfinance)
+- Solo posiciones largas (long-only)
+- Universo de solo 4 activos
+- Slippage estimado, no medido empíricamente
+- Un único período OOS puede ser atípico
+
+---
 
 ## Próximos pasos
 
-Ver [docs/DECISIONES.md](docs/DECISIONES.md) para contexto de decisiones de diseño.
-Fase 1 depende del resultado de Fase 0 — ver [reports/RECOMENDACION.md](reports/RECOMENDACION.md) una vez completado.
+- **Fase 1**: paper trading en cuenta demo Alpaca con la estrategia candidata (si existe)
+- La Fase 1 se diseña a partir de `reports/RECOMENDACION.md`
+
+Ver [docs/METODOLOGIA.md](docs/METODOLOGIA.md) y [docs/DECISIONES.md](docs/DECISIONES.md) para el razonamiento completo.
