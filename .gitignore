@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+.env
+
+# Environment variables
+.env
+!.env.example
+
+# Data cache (large files)
+data/cache/
+*.parquet
+
+# Reports output (generated files)
+reports/*.html
+reports/*.pdf
+# Keep placeholder
+!reports/.gitkeep
+
+# Notebooks checkpoints
+notebooks/.ipynb_checkpoints/
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
