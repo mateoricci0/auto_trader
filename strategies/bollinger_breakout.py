@@ -1,7 +1,7 @@
 import pandas as pd
-import ta
 
 from .base import StrategyBase
+from .indicators import bollinger
 
 
 class BollingerBreakoutStrategy(StrategyBase):
@@ -20,22 +20,11 @@ class BollingerBreakoutStrategy(StrategyBase):
         close  = pd.Series(self.data.Close)
         volume = pd.Series(self.data.Volume)
 
-        self.bb_upper = self.I(
-            lambda: ta.volatility.bollinger_hband(close, window=self.bb_period, window_dev=self.bb_std).values,
-            name="BB_upper",
-        )
-        self.bb_mid = self.I(
-            lambda: ta.volatility.bollinger_mavg(close, window=self.bb_period).values,
-            name="BB_mid",
-        )
-        self.bb_lower = self.I(
-            lambda: ta.volatility.bollinger_lband(close, window=self.bb_period, window_dev=self.bb_std).values,
-            name="BB_lower",
-        )
-        self.vol_avg = self.I(
-            lambda: volume.rolling(self.bb_period).mean().values,
-            name="Vol_avg",
-        )
+        bb_up, bb_mid, bb_low = bollinger(close, self.bb_period, self.bb_std)
+        self.bb_upper = self.I(lambda: bb_up.values,  name="BB_upper")
+        self.bb_mid   = self.I(lambda: bb_mid.values, name="BB_mid")
+        self.bb_lower = self.I(lambda: bb_low.values, name="BB_lower")
+        self.vol_avg  = self.I(lambda: volume.rolling(self.bb_period).mean().values, name="Vol_avg")
 
     def next(self):
         close  = self.data.Close[-1]

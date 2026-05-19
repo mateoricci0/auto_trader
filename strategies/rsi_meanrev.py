@@ -1,8 +1,8 @@
 import pandas as pd
-import ta
 from backtesting.lib import crossover
 
 from .base import StrategyBase
+from .indicators import rsi, atr
 
 
 class RSIMeanReversionStrategy(StrategyBase):
@@ -23,14 +23,8 @@ class RSIMeanReversionStrategy(StrategyBase):
         high  = pd.Series(self.data.High)
         low   = pd.Series(self.data.Low)
 
-        self.rsi = self.I(
-            lambda: ta.momentum.rsi(close, window=self.rsi_period).values,
-            name="RSI",
-        )
-        self.atr = self.I(
-            lambda: ta.volatility.average_true_range(high, low, close, window=14).values,
-            name="ATR14",
-        )
+        self.rsi = self.I(lambda: rsi(close, self.rsi_period).values, name="RSI")
+        self.atr = self.I(lambda: atr(high, low, close, 14).values, name="ATR14")
 
     def next(self):
         if not self.position:

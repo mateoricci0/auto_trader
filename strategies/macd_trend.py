@@ -1,8 +1,8 @@
 import pandas as pd
-import ta
 from backtesting.lib import crossover
 
 from .base import StrategyBase
+from .indicators import macd, atr
 
 
 class MACDTrendStrategy(StrategyBase):
@@ -23,20 +23,10 @@ class MACDTrendStrategy(StrategyBase):
         high  = pd.Series(self.data.High)
         low   = pd.Series(self.data.Low)
 
-        self.macd_line = self.I(
-            lambda: ta.trend.macd(close, window_slow=self.slow, window_fast=self.fast).values,
-            name="MACD",
-        )
-        self.macd_sig = self.I(
-            lambda: ta.trend.macd_signal(
-                close, window_slow=self.slow, window_fast=self.fast, window_sign=self.signal
-            ).values,
-            name="MACD_signal",
-        )
-        self.atr = self.I(
-            lambda: ta.volatility.average_true_range(high, low, close, window=14).values,
-            name="ATR14",
-        )
+        macd_line, macd_sig = macd(close, self.fast, self.slow, self.signal)
+        self.macd_line = self.I(lambda: macd_line.values, name="MACD")
+        self.macd_sig  = self.I(lambda: macd_sig.values,  name="MACD_signal")
+        self.atr       = self.I(lambda: atr(high, low, close, 14).values, name="ATR14")
 
     def next(self):
         if not self.position:

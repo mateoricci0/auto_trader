@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
-import ta
 
 from .base import StrategyBase
+from .indicators import ema, atr
 
 
 class ATRTrailingStrategy(StrategyBase):
@@ -21,14 +21,8 @@ class ATRTrailingStrategy(StrategyBase):
         high  = pd.Series(self.data.High)
         low   = pd.Series(self.data.Low)
 
-        self.ema = self.I(
-            lambda: ta.trend.ema_indicator(close, window=self.ema_period).values,
-            name="EMA50",
-        )
-        self.atr = self.I(
-            lambda: ta.volatility.average_true_range(high, low, close, window=self.atr_period).values,
-            name="ATR14",
-        )
+        self.ema = self.I(lambda: ema(close, self.ema_period).values, name="EMA50")
+        self.atr = self.I(lambda: atr(high, low, close, self.atr_period).values, name="ATR14")
         self._trailing_stop: float = np.nan
 
     def next(self):

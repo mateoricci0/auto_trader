@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
-import ta
 from backtesting.lib import crossover
 
 from .base import StrategyBase
+from .indicators import ema, atr
 
 
 class EMACrossStrategy(StrategyBase):
@@ -23,18 +23,9 @@ class EMACrossStrategy(StrategyBase):
         high  = pd.Series(self.data.High)
         low   = pd.Series(self.data.Low)
 
-        self.ema_fast = self.I(
-            lambda: ta.trend.ema_indicator(close, window=self.fast).values,
-            name="EMA_fast",
-        )
-        self.ema_slow = self.I(
-            lambda: ta.trend.ema_indicator(close, window=self.slow).values,
-            name="EMA_slow",
-        )
-        self.atr = self.I(
-            lambda: ta.volatility.average_true_range(high, low, close, window=14).values,
-            name="ATR14",
-        )
+        self.ema_fast = self.I(lambda: ema(close, self.fast).values, name="EMA_fast")
+        self.ema_slow = self.I(lambda: ema(close, self.slow).values, name="EMA_slow")
+        self.atr      = self.I(lambda: atr(high, low, close, 14).values, name="ATR14")
 
     def next(self):
         if crossover(self.ema_fast, self.ema_slow):
