@@ -10,7 +10,7 @@ from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
 from . import state
-from .config import MAX_OPEN_POSITIONS, RISK_PER_TRADE
+from .config import MAX_OPEN_POSITIONS, MAX_POSITION_PCT, RISK_PER_TRADE
 from .scanner import Signal
 
 logger = logging.getLogger(__name__)
@@ -108,9 +108,18 @@ def enter_position(client: Client, signal: Signal) -> bool:
         logger.warning("SL >= precio de entrada en %s — skip", signal.pair)
         return False
 
-    quantity = _round_qty(risk_usdt / risk_per_unit, step_size)
+    # Tamaño por riesgo, pero nunca más del MAX_POSITION_PCT del capital
+    qty_by_risk  = risk_usdt / risk_per_unit
+    qty_by_cap   = (balance * MAX_POSITION_PCT) / signal.price
+    quantity     = _round_qty(min(qty_by_risk, qty_by_cap), step_size)
+
     if quantity < min_qty:
         logger.warning("%s: cantidad %.6f < mínimo %.6f — skip", signal.pair, quantity, min_qty)
+        return False
+
+    cost_usdt = quantity * signal.price
+    if cost_usdt > balance * 0.99:
+        logger.warning("%s: coste %.2f USDT supera el saldo disponible — skip", signal.pair, cost_usdt)
         return False
 
     try:
