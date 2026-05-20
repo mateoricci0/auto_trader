@@ -7,7 +7,7 @@ PAIRS = [
 ]
 
 # Timeframe de las velas
-TIMEFRAME = "5m"           # 5 minutos — más señales y ciclos más frecuentes
+TIMEFRAME = "1m"           # 1 minuto — máxima frecuencia
 
 # Parámetros de estrategia (EMA cross + RSI filter)
 EMA_FAST      = 9
