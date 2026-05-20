@@ -10,7 +10,7 @@ from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
 from . import state
-from .config import MAX_OPEN_POSITIONS, MAX_POSITION_PCT, RISK_PER_TRADE
+from .config import DAILY_LOSS_LIMIT, MAX_OPEN_POSITIONS, MAX_POSITION_PCT, RISK_PER_TRADE
 from .scanner import Signal
 
 logger = logging.getLogger(__name__)
@@ -156,13 +156,22 @@ def enter_position(client: Client, signal: Signal) -> bool:
 def run_cycle(client: Client, signals: list[Signal]) -> None:
     """
     Ejecuta un ciclo completo:
-    - Comprueba posiciones propias (bot_state.json) y cierra las que ya se ejecutaron
+    - Comprueba límite de pérdida diaria
+    - Verifica posiciones propias y cierra las ya ejecutadas
     - Entra en las mejores señales hasta llenar MAX_OPEN_POSITIONS
     """
+    balance = _get_balance_usdt(client)
+    state.init_daily(balance)
+
+    if state.check_daily_limit(balance, DAILY_LOSS_LIMIT):
+        logger.warning("Bot en pausa por límite de pérdida diaria. Reintentará mañana.")
+        return
+
     open_pos = get_open_positions(client)
     n_open   = len(open_pos)
 
-    logger.info("Posiciones abiertas (propias): %d/%d", n_open, MAX_OPEN_POSITIONS)
+    logger.info("Posiciones abiertas (propias): %d/%d | Saldo: %.2f USDT",
+                n_open, MAX_OPEN_POSITIONS, balance)
     for pair, pos in open_pos.items():
         logger.info("  %s: %.6f (≈%.2f USDT) | entrada=%.4f",
                     pair, pos["qty"], pos["value_usdt"], pos["entry_price"])
@@ -182,6 +191,7 @@ def run_cycle(client: Client, signals: list[Signal]) -> None:
             continue
         ok = enter_position(client, signal)
         if ok:
+            state.record_trade()
             entered += 1
 
     if entered == 0 and signals:

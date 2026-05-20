@@ -1,11 +1,15 @@
 """
-Cerebro IA del bot. Usa la API de DeepSeek (compatible con OpenAI) para analizar
-cada par y decidir si entrar en una posición, con SL y TP propios.
+Cerebro IA del bot — DeepSeek.
+
+Analiza TODOS los pares en UNA sola llamada API, forzando selectividad real.
+DeepSeek compara pares entre sí y elige máximo 2 con alta convicción.
 """
 import json
 import logging
 
 import pandas as pd
+
+from .config import TIMEFRAME
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +17,6 @@ _ai_client = None
 
 
 def init(api_key: str) -> None:
-    """Inicializa el cliente DeepSeek. Llamar una vez al arrancar el bot."""
     global _ai_client
     if not api_key:
         logger.warning("DEEPSEEK_API_KEY no configurada — bot usará solo reglas técnicas.")
@@ -30,52 +33,64 @@ def is_available() -> bool:
     return _ai_client is not None
 
 
-def analyze(pair: str, df: pd.DataFrame, indicators: dict) -> dict | None:
+def analyze_all(pairs_data: list[dict]) -> list[dict]:
     """
-    Envía datos de mercado a DeepSeek y recibe una decisión de trading.
+    Envía datos de TODOS los pares en una sola llamada a DeepSeek.
+    Devuelve lista de trades recomendados [{pair, sl, tp, confidence, reason}, ...]
+    o lista vacía si no hay oportunidades claras.
 
-    Devuelve dict con keys: action, sl, tp, confidence, reason
-    o None si hubo un error.
+    pairs_data: lista de dicts con keys: pair, price, ema_fast, ema_slow, rsi, atr, candles_text
     """
     if not is_available():
-        return None
+        return []
 
-    price    = indicators["price"]
-    ema_fast = indicators["ema_fast"]
-    ema_slow = indicators["ema_slow"]
-    rsi_val  = indicators["rsi"]
-    atr_val  = indicators["atr"]
+    # Construir sección de datos de mercado
+    market_sections = []
+    for p in pairs_data:
+        section = (
+            f"=== {p['pair']} ===\n"
+            f"Price: {p['price']:.6f} | EMA9: {p['ema_fast']:.6f} | EMA21: {p['ema_slow']:.6f} "
+            f"| RSI: {p['rsi']:.1f} | ATR: {p['atr']:.6f}\n"
+            f"Last 30 candles (Open High Low Close Volume):\n{p['candles_text']}"
+        )
+        market_sections.append(section)
 
-    # Últimas 30 velas en formato compacto
-    recent = df.tail(30)[["Open", "High", "Low", "Close", "Volume"]].round(6)
-    candles_text = recent.to_string(index=False)
+    market_block = "\n\n".join(market_sections)
 
     system_prompt = (
-        "You are a disciplined quantitative crypto trader. "
-        "Your job is to find high-probability momentum entries with strict risk management. "
-        "You ONLY output valid JSON — no markdown, no explanation outside the JSON."
+        "You are a disciplined professional crypto trader with 10+ years of experience. "
+        "You are known for being VERY selective — you only take high-conviction trades. "
+        "Capital preservation is your top priority. "
+        "You ONLY output valid JSON, no markdown, no explanation."
     )
 
-    user_prompt = f"""Analyze {pair} (15-minute candles) and decide whether to BUY now.
+    user_prompt = f"""Analyze these {len(pairs_data)} crypto pairs ({TIMEFRAME} timeframe) and select AT MOST 2 for a BUY entry.
 
-Last 30 candles (OHLCV):
-{candles_text}
+IMPORTANT: The most common correct answer is 0 trades. Only enter when the setup is exceptional.
 
-Current technical indicators:
-- Price:  {price:.6f}
-- EMA9:   {ema_fast:.6f}
-- EMA21:  {ema_slow:.6f}
-- RSI14:  {rsi_val:.2f}
-- ATR14:  {atr_val:.6f}
+BUY criteria — ALL must be met:
+1. Price clearly above EMA9 AND EMA21 (confirmed uptrend)
+2. RSI between 45 and 65 (momentum without being overbought)
+3. Stop Loss placed below clear support, minimum 0.5% below entry
+4. Take Profit at clear resistance, minimum 3× the SL distance (R/R ≥ 3:1)
+5. Recent volume increasing (confirms the move)
+6. Clear technical reason: momentum continuation, EMA bounce, or volume breakout
 
-Respond with ONLY this JSON (numbers, not strings for sl/tp/confidence):
-{{"action": "BUY" or "HOLD", "sl": <stop_loss_price>, "tp": <take_profit_price>, "confidence": <0.0-1.0>, "reason": "<max 15 words>"}}
+DO NOT trade when:
+- Market looks choppy, ranging, or consolidating
+- RSI is above 65 (overbought) or below 45 (no momentum)
+- Stop loss would be less than 0.5% from entry
+- Risk/reward is worse than 3:1
+- The move has already run far (chasing)
+- You are unsure — if in doubt, HOLD
 
-Strict rules:
-- action=BUY only when trend is clear and risk/reward ratio >= 2.0
-- sl MUST be strictly below current price
-- tp MUST be strictly above current price
-- If uncertain, return HOLD"""
+Market data:
+{market_block}
+
+Respond ONLY with this JSON (no markdown, numbers not strings):
+{{"trades": [{{"pair": "XXXUSDT", "sl": 0.0, "tp": 0.0, "confidence": 0.0, "reason": "<max 12 words>"}}]}}
+
+If no good setups exist: {{"trades": []}}"""
 
     try:
         response = _ai_client.chat.completions.create(
@@ -84,35 +99,37 @@ Strict rules:
                 {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": user_prompt},
             ],
-            temperature=0.1,
-            max_tokens=150,
+            temperature=0.2,
+            max_tokens=400,
         )
         raw = response.choices[0].message.content.strip()
 
-        # Eliminar bloques markdown si el modelo los añade
+        # Quitar bloques markdown si el modelo los añade
         if "```" in raw:
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
+        raw = raw.strip()
 
         result = json.loads(raw)
+        trades = result.get("trades", [])
 
-        # Validación básica
-        required = {"action", "sl", "tp", "confidence", "reason"}
-        if not required.issubset(result):
-            logger.warning("%s: respuesta DeepSeek incompleta: %s", pair, result)
-            return None
+        validated = []
+        for t in trades:
+            if not {"pair", "sl", "tp", "confidence"}.issubset(t):
+                continue
+            t["sl"]         = float(t["sl"])
+            t["tp"]         = float(t["tp"])
+            t["confidence"] = float(t["confidence"])
+            validated.append(t)
 
-        result["sl"]         = float(result["sl"])
-        result["tp"]         = float(result["tp"])
-        result["confidence"] = float(result["confidence"])
-
-        logger.debug("%s → DeepSeek: %s", pair, result)
-        return result
+        logger.info("DeepSeek recomienda %d trade(s): %s",
+                    len(validated), [t["pair"] for t in validated])
+        return validated
 
     except json.JSONDecodeError as exc:
-        logger.warning("%s: DeepSeek devolvió JSON inválido: %s", pair, exc)
-        return None
+        logger.warning("DeepSeek devolvió JSON inválido: %s", exc)
+        return []
     except Exception as exc:
-        logger.warning("%s: error llamando a DeepSeek: %s", pair, exc)
-        return None
+        logger.warning("Error llamando a DeepSeek: %s", exc)
+        return []
