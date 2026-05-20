@@ -7,7 +7,7 @@ PAIRS = [
 ]
 
 # Timeframe de las velas
-TIMEFRAME = "15m"          # 15 minutos — cambia a "5m" para más trades
+TIMEFRAME = "5m"           # 5 minutos — más señales y ciclos más frecuentes
 
 # Parámetros de estrategia (EMA cross + RSI filter)
 EMA_FAST      = 9
