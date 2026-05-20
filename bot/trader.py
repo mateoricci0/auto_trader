@@ -141,7 +141,7 @@ def enter_position(client: Client, signal: Signal) -> bool:
         return False
 
 
-def run_cycle(client: Client, signals: list[Signal], pairs: list[str]) -> None:
+def run_cycle(client: Client, signals: list[Signal]) -> None:
     """
     Ejecuta un ciclo completo:
     - Comprueba posiciones propias (bot_state.json) y cierra las que ya se ejecutaron
