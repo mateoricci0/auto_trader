@@ -130,15 +130,18 @@ def enter_position(client: Client, signal: Signal) -> bool:
         sl_price = _round_price(signal.sl,         tick_size)
         sl_limit = _round_price(signal.sl * 0.999, tick_size)
 
-        client.create_oco_order(
-            symbol=signal.pair,
-            side="SELL",
-            quantity=quantity,
-            price=tp_price,
-            stopPrice=sl_price,
-            stopLimitPrice=sl_limit,
-            stopLimitTimeInForce="GTC",
-        )
+        # Nueva API de Binance: orderList/oco con aboveType/belowType
+        client._post("orderList/oco", True, data={
+            "symbol":            signal.pair,
+            "side":              "SELL",
+            "quantity":          str(quantity),
+            "aboveType":         "LIMIT_MAKER",
+            "abovePrice":        tp_price,
+            "belowType":         "STOP_LOSS_LIMIT",
+            "belowStopPrice":    sl_price,
+            "belowPrice":        sl_limit,
+            "belowTimeInForce":  "GTC",
+        })
         logger.info("OCO colocado %s | TP=%s SL=%s", signal.pair, tp_price, sl_price)
 
         # Registrar la posición en el estado local
