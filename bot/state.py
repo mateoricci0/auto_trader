@@ -1,5 +1,5 @@
 """
-Rastrea posiciones abiertas y estado diario del bot en bot_state.json.
+Rastrea posiciones abiertas, P&L y estado diario del bot en bot_state.json.
 Solo cuenta las trades que el bot abrió — ignora balances iniciales del testnet.
 """
 import json
@@ -18,7 +18,7 @@ def _load() -> dict:
             return json.loads(_STATE_FILE.read_text(encoding="utf-8"))
         except Exception:
             pass
-    return {"positions": {}, "daily": {}}
+    return {"positions": {}, "daily": {}, "session": {}, "history": []}
 
 
 def _save(state: dict) -> None:
@@ -45,23 +45,77 @@ def remove_position(pair: str) -> None:
     if pair in state["positions"]:
         del state["positions"][pair]
         _save(state)
-        logger.info("Estado: posición cerrada en %s", pair)
+
+
+# ── Sesión y P&L ─────────────────────────────────────────────────────────────
+
+def init_session(balance_usdt: float) -> None:
+    """Registra el saldo al inicio de la sesión si no existe."""
+    state = _load()
+    if not state.get("session"):
+        state["session"] = {
+            "start_balance": balance_usdt,
+            "trades":        0,
+            "wins":          0,
+            "losses":        0,
+            "gross_pnl":     0.0,
+        }
+        _save(state)
+        logger.info("Sesión iniciada. Saldo de referencia: %.2f USDT", balance_usdt)
+
+
+def record_closed_trade(pair: str, entry: float, exit_price: float,
+                        qty: float, pnl_usdt: float) -> None:
+    """Registra el resultado de una trade cerrada."""
+    state = _load()
+    result = "WIN" if pnl_usdt > 0 else "LOSS"
+
+    # Actualizar sesión
+    sess = state.setdefault("session", {})
+    sess["trades"]    = sess.get("trades", 0) + 1
+    sess["wins"]      = sess.get("wins", 0) + (1 if pnl_usdt > 0 else 0)
+    sess["losses"]    = sess.get("losses", 0) + (1 if pnl_usdt <= 0 else 0)
+    sess["gross_pnl"] = sess.get("gross_pnl", 0.0) + pnl_usdt
+
+    # Actualizar diario
+    daily = state.setdefault("daily", {})
+    daily["pnl_usdt"] = daily.get("pnl_usdt", 0.0) + pnl_usdt
+
+    # Historial
+    state.setdefault("history", []).append({
+        "pair": pair, "entry": entry, "exit": exit_price,
+        "qty": qty, "pnl": round(pnl_usdt, 4), "result": result,
+    })
+
+    _save(state)
+
+    sign = "+" if pnl_usdt >= 0 else ""
+    pct  = (exit_price - entry) / entry * 100
+    logger.info("%-8s %-10s | entrada=%.4f salida=%.4f | %s%.2f USDT (%s%.2f%%)",
+                result, pair, entry, exit_price, sign, pnl_usdt, sign, pct)
+
+
+def get_session_stats() -> dict:
+    return _load().get("session", {})
+
+
+def get_daily_pnl() -> float:
+    return _load().get("daily", {}).get("pnl_usdt", 0.0)
 
 
 # ── Control de pérdida diaria ─────────────────────────────────────────────────
 
 def init_daily(balance_usdt: float) -> None:
-    """Registra el saldo al inicio del día si no existe entrada para hoy."""
     today = str(date.today())
     state = _load()
     daily = state.setdefault("daily", {})
     if daily.get("date") != today:
-        daily["date"]            = today
-        daily["start_balance"]   = balance_usdt
-        daily["trades_today"]    = 0
-        daily["halted"]          = False
+        daily["date"]          = today
+        daily["start_balance"] = balance_usdt
+        daily["pnl_usdt"]      = 0.0
+        daily["halted"]        = False
         _save(state)
-        logger.info("Nuevo día de trading. Saldo inicial: %.2f USDT", balance_usdt)
+        logger.info("Nuevo día. Saldo inicial del día: %.2f USDT", balance_usdt)
 
 
 def record_trade() -> None:
@@ -72,24 +126,20 @@ def record_trade() -> None:
 
 
 def check_daily_limit(current_balance: float, limit_pct: float) -> bool:
-    """
-    Devuelve True si el bot debe parar por pérdida diaria excesiva.
-    limit_pct = fracción del capital (ej. 0.05 = 5%).
-    """
     state = _load()
     daily = state.get("daily", {})
     if daily.get("halted"):
         return True
 
-    start = daily.get("start_balance", current_balance)
+    start    = daily.get("start_balance", current_balance)
     loss_pct = (start - current_balance) / start if start > 0 else 0
 
     if loss_pct >= limit_pct:
         daily["halted"] = True
         _save(state)
         logger.warning(
-            "LÍMITE DIARIO ALCANZADO: pérdida %.1f%% (inicio=%.2f actual=%.2f). "
-            "Bot detenido hasta mañana.", loss_pct * 100, start, current_balance
+            "LÍMITE DIARIO: pérdida %.1f%% (inicio=%.2f actual=%.2f). Bot pausado hasta mañana.",
+            loss_pct * 100, start, current_balance,
         )
         return True
 

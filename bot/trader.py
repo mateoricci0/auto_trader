@@ -60,10 +60,22 @@ def _is_oco_active(client: Client, pair: str) -> bool:
         return True  # conservador: asumir activa si hay error
 
 
+def _get_exit_price(client: Client, pair: str) -> float | None:
+    """Obtiene el precio real de cierre de la última orden de venta ejecutada."""
+    try:
+        trades = client.get_my_trades(symbol=pair, limit=10)
+        for trade in reversed(trades):
+            if not trade["isBuyer"]:   # es una venta → cierre de posición
+                return float(trade["price"])
+    except Exception as exc:
+        logger.warning("No se pudo obtener precio de cierre de %s: %s", pair, exc)
+    return None
+
+
 def get_open_positions(client: Client) -> dict[str, dict]:
     """
-    Devuelve posiciones que el bot abrió y que siguen activas (OCO pendiente).
-    Elimina del estado las que ya se cerraron (SL o TP alcanzado).
+    Devuelve posiciones activas. Cuando una OCO se ejecuta, calcula el P&L real
+    consultando el historial de trades de Binance y lo registra en el estado.
     """
     tracked = state.get_positions()
     active  = {}
@@ -75,15 +87,35 @@ def get_open_positions(client: Client) -> dict[str, dict]:
                 price  = float(ticker["price"])
             except Exception:
                 price = pos["entry_price"]
+
+            unrealized = (price - pos["entry_price"]) * pos["qty"]
+            sign = "+" if unrealized >= 0 else ""
             active[pair] = {
-                "qty":        pos["qty"],
+                "qty":         pos["qty"],
                 "entry_price": pos["entry_price"],
-                "value_usdt": pos["qty"] * price,
+                "current_price": price,
+                "value_usdt":  pos["qty"] * price,
+                "unrealized":  unrealized,
+                "unrealized_str": f"{sign}{unrealized:.2f} USDT",
             }
         else:
-            # OCO ya ejecutada → posición cerrada
-            pnl_est = (pos.get("tp", 0) + pos.get("sl", 0)) / 2  # solo log
-            logger.info("Posición cerrada (SL/TP alcanzado): %s", pair)
+            # OCO ejecutada → buscar precio real de salida
+            exit_price = _get_exit_price(client, pair)
+            entry      = pos["entry_price"]
+            qty        = pos["qty"]
+
+            if exit_price:
+                pnl = (exit_price - entry) * qty
+            else:
+                # Fallback: inferir por precio actual
+                try:
+                    ticker     = client.get_symbol_ticker(symbol=pair)
+                    exit_price = float(ticker["price"])
+                except Exception:
+                    exit_price = entry
+                pnl = (exit_price - entry) * qty
+
+            state.record_closed_trade(pair, entry, exit_price, qty, pnl)
             state.remove_position(pair)
 
     return active
