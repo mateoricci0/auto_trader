@@ -9,6 +9,7 @@ from datetime import datetime
 
 from binance.client import Client
 
+from . import ai_brain
 from .config import PAIRS, TIMEFRAME
 from .scanner import scan
 from .trader import run_cycle
@@ -33,12 +34,15 @@ _INTERVAL_MAP = {
 LOOP_SECONDS = _INTERVAL_MAP.get(TIMEFRAME, 900)
 
 
-def run(api_key: str, api_secret: str) -> None:
+def run(api_key: str, api_secret: str, deepseek_key: str = "") -> None:
     """Inicia el bot. Llama a esta función desde run_bot.py."""
+    ai_brain.init(deepseek_key)
+
     logger.info("=" * 55)
     logger.info("  AUTO_TRADER BOT — Binance Testnet")
     logger.info("  Pares: %d | Timeframe: %s | Intervalo: %ds",
                 len(PAIRS), TIMEFRAME, LOOP_SECONDS)
+    logger.info("  Cerebro: %s", "DeepSeek AI" if ai_brain.is_available() else "reglas técnicas")
     logger.info("=" * 55)
 
     client = Client(api_key, api_secret, testnet=True)
