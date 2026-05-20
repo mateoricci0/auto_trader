@@ -43,6 +43,10 @@ def run(api_key: str, api_secret: str) -> None:
 
     client = Client(api_key, api_secret, testnet=True)
 
+    # Sincronizar reloj con el servidor de Binance
+    server_time = client.get_server_time()
+    client.timestamp_offset = server_time["serverTime"] - int(time.time() * 1000)
+
     # Verificar conexión
     try:
         info = client.get_account()
