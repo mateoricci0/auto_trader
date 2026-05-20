@@ -68,7 +68,7 @@ def run(api_key: str, api_secret: str, deepseek_key: str = "") -> None:
         try:
             signals = scan(client)
             logger.info("Señales encontradas: %d", len(signals))
-            run_cycle(client, signals, PAIRS)
+            run_cycle(client, signals)
         except Exception as exc:
             logger.error("Error en ciclo %d: %s", cycle, exc)
 
