@@ -10,7 +10,7 @@ from binance.client import Client
 from . import ai_brain, state
 from .config import PAIRS, TIMEFRAME
 from .scanner import scan
-from .trader import _get_balance_usdt, get_open_positions, run_cycle
+from .trader import _get_balance_usdt, close_all_positions, get_open_positions, run_cycle
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +31,6 @@ LOOP_SECONDS = _INTERVAL_MAP.get(TIMEFRAME, 900)
 
 
 def _print_account_summary(client: Client) -> float:
-    """Muestra saldo, P&L de sesión y posiciones abiertas. Devuelve saldo USDT."""
     balance  = _get_balance_usdt(client)
     sess     = state.get_session_stats()
     open_pos = get_open_positions(client)
@@ -44,7 +43,6 @@ def _print_account_summary(client: Client) -> float:
     losses      = sess.get("losses", 0)
     win_rate    = (wins / trades * 100) if trades > 0 else 0.0
 
-    # Valor estimado de posiciones abiertas (USDT bloqueado en cripto)
     open_value = sum(p["value_usdt"] for p in open_pos.values())
     total_val  = balance + open_value
 
@@ -67,14 +65,33 @@ def _print_account_summary(client: Client) -> float:
             logger.info("    %-10s | qty=%.4f | entrada=%.4f | actual=%.4f | no realizado=%s",
                         pair, pos["qty"], pos["entry_price"],
                         pos["current_price"], pos["unrealized_str"])
-
     return balance
+
+
+def _ask_close_on_exit(client: Client) -> None:
+    """Al hacer Ctrl+C pregunta si cerrar posiciones antes de salir."""
+    open_pos = state.get_positions()
+    if not open_pos:
+        print("\nBot detenido. No había posiciones abiertas.")
+        return
+
+    print(f"\n\nBot detenido. Hay {len(open_pos)} posición(es) abierta(s):")
+    for pair, pos in open_pos.items():
+        print(f"  {pair}: qty={pos['qty']} | entrada={pos['entry_price']:.4f}")
+
+    while True:
+        resp = input("\n¿Cerrar todas las posiciones ahora? (s/n): ").strip().lower()
+        if resp == "s":
+            close_all_positions(client)
+            break
+        elif resp == "n":
+            print("Posiciones mantenidas. Las OCOs siguen activas en Binance.")
+            break
 
 
 def run(api_key: str, api_secret: str, deepseek_key: str = "", trading_capital: float = 500.0) -> None:
     ai_brain.init(deepseek_key)
 
-    # Aplicar el capital elegido por el usuario
     import bot.config as _cfg
     _cfg.TRADING_CAPITAL = trading_capital
 
@@ -87,7 +104,6 @@ def run(api_key: str, api_secret: str, deepseek_key: str = "", trading_capital: 
     logger.info("=" * 55)
 
     client = Client(api_key, api_secret, testnet=True)
-
     server_time = client.get_server_time()
     client.timestamp_offset = server_time["serverTime"] - int(time.time() * 1000)
 
@@ -95,24 +111,45 @@ def run(api_key: str, api_secret: str, deepseek_key: str = "", trading_capital: 
         info    = client.get_account()
         balance = float(next(b for b in info["balances"] if b["asset"] == "USDT")["free"])
         logger.info("Conectado. Saldo USDT: %.2f", balance)
-        state.init_session(balance)
-        state.init_daily(balance)
     except Exception as exc:
         logger.error("No se pudo conectar a Binance testnet: %s", exc)
         raise
 
+    # ── Comprobar posiciones abiertas de sesiones anteriores ──────────────────
+    prev_positions = state.get_positions()
+    if prev_positions:
+        print(f"\nHay {len(prev_positions)} posición(es) abiertas de la sesión anterior:")
+        for pair, pos in prev_positions.items():
+            print(f"  {pair}: qty={pos['qty']} | entrada={pos['entry_price']:.4f}")
+
+        while True:
+            resp = input("\n¿Qué quieres hacer?\n  [c] Cerrar todas y empezar limpio\n  [m] Mantenerlas y continuar\nOpción: ").strip().lower()
+            if resp == "c":
+                close_all_positions(client)
+                break
+            elif resp == "m":
+                logger.info("Manteniendo posiciones anteriores.")
+                break
+
+    state.init_session(balance)
+    state.init_daily(balance)
+
     cycle = 0
-    while True:
-        cycle += 1
-        logger.info("─── Ciclo %d — %s ───", cycle, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    try:
+        while True:
+            cycle += 1
+            logger.info("─── Ciclo %d — %s ───", cycle, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
-        try:
-            _print_account_summary(client)
-            signals = scan(client)
-            logger.info("Señales válidas: %d", len(signals))
-            run_cycle(client, signals)
-        except Exception as exc:
-            logger.error("Error en ciclo %d: %s", cycle, exc, exc_info=True)
+            try:
+                _print_account_summary(client)
+                signals = scan(client)
+                logger.info("Señales válidas: %d", len(signals))
+                run_cycle(client, signals)
+            except Exception as exc:
+                logger.error("Error en ciclo %d: %s", cycle, exc, exc_info=True)
 
-        logger.info("Próximo ciclo en %ds...\n", LOOP_SECONDS)
-        time.sleep(LOOP_SECONDS)
+            logger.info("Próximo ciclo en %ds...\n", LOOP_SECONDS)
+            time.sleep(LOOP_SECONDS)
+
+    except KeyboardInterrupt:
+        _ask_close_on_exit(client)

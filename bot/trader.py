@@ -194,6 +194,48 @@ def enter_position(client: Client, signal: Signal) -> bool:
         return False
 
 
+def close_all_positions(client: Client) -> None:
+    """
+    Cancela todas las OCOs abiertas y vende a mercado todas las posiciones rastreadas.
+    Usado al arrancar (limpiar sesión anterior) o al salir con Ctrl+C.
+    """
+    tracked = state.get_positions()
+    if not tracked:
+        logger.info("No hay posiciones abiertas que cerrar.")
+        return
+
+    logger.info("Cerrando %d posición(es)...", len(tracked))
+    for pair, pos in list(tracked.items()):
+        # 1. Cancelar órdenes OCO pendientes
+        try:
+            client.cancel_open_orders(symbol=pair)
+            logger.info("Órdenes canceladas: %s", pair)
+        except Exception as exc:
+            logger.warning("No se pudieron cancelar órdenes de %s: %s", pair, exc)
+
+        # 2. Vender a mercado
+        try:
+            step_size, _ = _get_step_size(client, pair)
+            qty = _round_qty(pos["qty"], step_size)
+            client.order_market_sell(symbol=pair, quantity=qty)
+            logger.info("VENTA MERCADO %s | qty=%.6f", pair, qty)
+
+            # Calcular P&L
+            try:
+                ticker     = client.get_symbol_ticker(symbol=pair)
+                exit_price = float(ticker["price"])
+            except Exception:
+                exit_price = pos["entry_price"]
+            pnl = (exit_price - pos["entry_price"]) * qty
+            state.record_closed_trade(pair, pos["entry_price"], exit_price, qty, pnl)
+        except Exception as exc:
+            logger.error("Error vendiendo %s: %s", pair, exc)
+
+        state.remove_position(pair)
+
+    logger.info("Todas las posiciones cerradas.")
+
+
 def run_cycle(client: Client, signals: list[Signal]) -> None:
     """
     Ejecuta un ciclo completo:
