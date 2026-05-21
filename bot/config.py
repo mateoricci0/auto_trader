@@ -19,7 +19,7 @@ MAX_PER_CORR_GROUP = 1
 TRADING_CAPITAL = 500.0   # USDT — equivale a ~500 €
 
 # ── Timeframe ────────────────────────────────────────────────────────────────
-TIMEFRAME     = "1m"      # 1 minuto — escanea cada minuto
+TIMEFRAME     = "15m"     # 15 minutos — movimientos más significativos
 CANDLES_LIMIT = 200       # 200 velas de historia
 
 # ── Indicadores ──────────────────────────────────────────────────────────────
