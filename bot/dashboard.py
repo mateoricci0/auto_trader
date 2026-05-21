@@ -10,6 +10,9 @@ from flask import Flask, jsonify, render_template
 
 logger = logging.getLogger(__name__)
 
+# Silenciar logs de acceso HTTP de werkzeug (GET /api/data cada 3s)
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
+
 _STATE_FILE = Path("bot_state.json")
 
 app = Flask(__name__, template_folder="templates")
