@@ -9,6 +9,7 @@ from binance.client import Client
 
 from . import ai_brain, state
 from .config import PAIRS, TIMEFRAME
+from .dashboard import start_dashboard
 from .scanner import scan
 from .trader import _get_balance_usdt, close_all_positions, get_open_positions, run_cycle
 
@@ -138,6 +139,10 @@ def run(api_key: str, api_secret: str, deepseek_key: str = "", trading_capital: 
     state.init_session(balance)
     state.init_daily(balance)
 
+    # ── Start web dashboard ───────────────────────────────────────────────────
+    start_dashboard()
+    print("Dashboard: http://localhost:5000")
+
     cycle = 0
     try:
         while True:
@@ -151,6 +156,19 @@ def run(api_key: str, api_secret: str, deepseek_key: str = "", trading_capital: 
                 run_cycle(client, signals)
             except Exception as exc:
                 logger.error("Error en ciclo %d: %s", cycle, exc, exc_info=True)
+
+            # ── Update live state for the dashboard ───────────────────────────
+            try:
+                import bot.config as _cfg
+                open_pos = get_open_positions(client)
+                state.update_live(
+                    balance=_get_balance_usdt(client),
+                    capital=_cfg.TRADING_CAPITAL,
+                    open_positions=open_pos,
+                    last_signal_count=len(signals) if 'signals' in dir() else 0,
+                )
+            except Exception as exc:
+                logger.warning("No se pudo actualizar live state: %s", exc)
 
             logger.info("Próximo ciclo en %ds...\n", LOOP_SECONDS)
             time.sleep(LOOP_SECONDS)

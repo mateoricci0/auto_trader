@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AUTO_TRADER BOT — Dashboard</title>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    crossorigin="anonymous"
+  />
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --card-bg:   #161b22;
+      --border:    #30363d;
+      --blue:      #58a6ff;
+      --green:     #3fb950;
+      --red:       #f85149;
+      --yellow:    #d29922;
+      --text:      #c9d1d9;
+      --muted:     #8b949e;
+      --heading:   #e6edf3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', 'SF Pro Display', system-ui, sans-serif;
+      font-size: 0.875rem;
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────── */
+    .topbar {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .topbar .logo {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--heading);
+      font-family: 'Courier New', monospace;
+    }
+    .topbar .logo span { color: var(--blue); }
+    .badge-status {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--green);
+      border: 1px solid var(--green);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+    }
+    .chip {
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--blue);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-family: 'Courier New', monospace;
+    }
+    .topbar .ms-auto { margin-left: auto !important; }
+    .last-update {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    /* ── Cards ───────────────────────────────────────────── */
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      height: 100%;
+    }
+    .metric-card .label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.3rem;
+    }
+    .metric-card .value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--heading);
+      font-family: 'Courier New', monospace;
+      line-height: 1.2;
+    }
+    .metric-card .sub {
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      color: var(--muted);
+    }
+    .text-green  { color: var(--green) !important; }
+    .text-red    { color: var(--red)   !important; }
+    .text-blue   { color: var(--blue)  !important; }
+    .text-yellow { color: var(--yellow)!important; }
+    .text-muted-custom { color: var(--muted) !important; }
+
+    /* ── Section headers ─────────────────────────────────── */
+    .section-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Tables ──────────────────────────────────────────── */
+    .table-dark-custom {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    .table-dark-custom th {
+      background: rgba(48, 54, 61, 0.6);
+      color: var(--muted);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .table-dark-custom td {
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+      color: var(--text);
+      vertical-align: middle;
+    }
+    .table-dark-custom tr:last-child td { border-bottom: none; }
+    .table-dark-custom tr:hover td { background: rgba(48, 54, 61, 0.3); }
+
+    /* Badge WIN / LOSS */
+    .badge-win {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(63, 185, 80, 0.4);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+    .badge-loss {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--red);
+      border: 1px solid rgba(248, 81, 73, 0.4);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    /* Progress bar SL→TP */
+    .sl-tp-bar {
+      height: 4px;
+      background: rgba(48, 54, 61, 0.8);
+      border-radius: 999px;
+      overflow: hidden;
+      min-width: 60px;
+    }
+    .sl-tp-bar .fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    /* ── Sections wrapper ────────────────────────────────── */
+    .section-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 0.6rem 1.25rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .pulse {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    /* ── Misc ────────────────────────────────────────────── */
+    .font-mono { font-family: 'Courier New', monospace; }
+    .pair-label {
+      font-weight: 700;
+      color: var(--heading);
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ─────────────────────────────────────────────── -->
+<div class="topbar">
+  <span class="logo"><span>AUTO</span>_TRADER BOT</span>
+  <span class="badge-status" id="status-badge">● RUNNING</span>
+  <span class="chip" id="tf-chip">1m</span>
+  <span class="chip" id="pairs-chip">? pares</span>
+  <div class="ms-auto last-update">
+    Actualizado: <span id="last-update">—</span>
+  </div>
+</div>
+
+<!-- ── Main content ────────────────────────────────────────── -->
+<div class="container-fluid px-3 py-3" style="max-width: 1400px; margin: 0 auto;">
+
+  <!-- Metric cards row -->
+  <div class="row g-2 mb-3">
+
+    <!-- Capital -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card">
+        <div class="label">Capital</div>
+        <div class="value font-mono" id="card-capital-assigned">—</div>
+        <div class="sub">
+          Actual: <span id="card-capital-now" class="font-mono">—</span>
+          <span id="card-capital-pct" class="ms-1">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P&L Sesión -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card">
+        <div class="label">P&amp;L Sesión</div>
+        <div class="value font-mono" id="card-pnl-session">—</div>
+        <div class="sub" id="card-pnl-session-sub">—</div>
+      </div>
+    </div>
+
+    <!-- P&L Hoy -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card">
+        <div class="label">P&amp;L Hoy</div>
+        <div class="value font-mono" id="card-pnl-daily">—</div>
+        <div class="sub" id="card-pnl-daily-sub">—</div>
+      </div>
+    </div>
+
+    <!-- Win Rate -->
+    <div class="col-6 col-md-3">
+      <div class="metric-card">
+        <div class="label">Win Rate</div>
+        <div class="value font-mono" id="card-winrate">—</div>
+        <div class="sub" id="card-wr-sub">W:0 / L:0 · 0 trades</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open Positions -->
+  <div class="section-card mb-3">
+    <div class="section-title">Posiciones Abiertas <span class="ms-1 text-blue" id="pos-count"></span></div>
+    <div id="positions-body">
+      <div class="empty-state">Sin posiciones abiertas</div>
+    </div>
+  </div>
+
+  <!-- Trade History -->
+  <div class="section-card mb-3">
+    <div class="section-title">Historial de Trades (últimas 20)</div>
+    <div id="history-body">
+      <div class="empty-state">Sin trades registradas</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Footer ──────────────────────────────────────────────── -->
+<footer>
+  <span class="pulse"></span>
+  <span id="countdown">Próximo ciclo en …</span>
+  <span class="ms-auto">AUTO_TRADER BOT · Dashboard v1.0</span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<script>
+  /* ── Helpers ─────────────────────────────────────────────── */
+  const $ = id => document.getElementById(id);
+
+  function fmt(n, decimals = 2) {
+    if (n === null || n === undefined) return '—';
+    return Number(n).toFixed(decimals);
+  }
+
+  function fmtPnl(n) {
+    if (n === null || n === undefined) return { text: '—', cls: '' };
+    const v = Number(n);
+    const sign = v >= 0 ? '+' : '';
+    return {
+      text: `${sign}${fmt(v)} USDT`,
+      cls:  v > 0 ? 'text-green' : v < 0 ? 'text-red' : 'text-muted-custom'
+    };
+  }
+
+  function pct(a, b) {
+    if (!b) return null;
+    return ((a - b) / b * 100);
+  }
+
+  function fmtPct(n) {
+    if (n === null || n === undefined) return '—';
+    const v = Number(n);
+    const sign = v >= 0 ? '+' : '';
+    return `${sign}${fmt(v, 2)}%`;
+  }
+
+  function setEl(id, text, cls) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    if (cls !== undefined) {
+      el.className = cls;
+    }
+  }
+
+  /* ── Countdown timer ─────────────────────────────────────── */
+  let _cycleSeconds = 60;
+  let _countdown = _cycleSeconds;
+  const _TF_MAP = { '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '4h': 14400 };
+
+  setInterval(() => {
+    _countdown = Math.max(0, _countdown - 1);
+    $('countdown').textContent = `Próximo ciclo en ${_countdown}s…`;
+    if (_countdown === 0) _countdown = _cycleSeconds;
+  }, 1000);
+
+  /* ── Render functions ────────────────────────────────────── */
+  function renderMetrics(data) {
+    const cfg  = data.config  || {};
+    const sess = data.session || {};
+    const daily = data.daily  || {};
+    const live  = data.live   || {};
+
+    // Top bar chips
+    const tf = cfg.timeframe || '?';
+    $('tf-chip').textContent = tf;
+    $('pairs-chip').textContent = `${cfg.pairs_count || '?'} pares`;
+
+    // Update cycle seconds
+    if (_TF_MAP[tf]) {
+      _cycleSeconds = _TF_MAP[tf];
+    }
+
+    // Last update
+    const lu = live.last_update;
+    if (lu) {
+      const d = new Date(lu);
+      $('last-update').textContent = isNaN(d) ? lu : d.toLocaleTimeString('es-ES');
+    }
+
+    // Capital card
+    const assigned = cfg.trading_capital || 0;
+    const sessionPnl = sess.gross_pnl || 0;
+    const capitalNow = assigned + sessionPnl;
+    const capPct = pct(capitalNow, assigned);
+
+    $('card-capital-assigned').textContent = `${fmt(assigned)} USDT`;
+    $('card-capital-now').textContent = `${fmt(capitalNow)} USDT`;
+    const capPctEl = $('card-capital-pct');
+    capPctEl.textContent = fmtPct(capPct);
+    capPctEl.className = `ms-1 font-mono ${capPct > 0 ? 'text-green' : capPct < 0 ? 'text-red' : 'text-muted-custom'}`;
+
+    // P&L Sesión
+    const sp = fmtPnl(sessionPnl);
+    $('card-pnl-session').textContent = sp.text;
+    $('card-pnl-session').className = `value font-mono ${sp.cls}`;
+    $('card-pnl-session-sub').textContent = `desde inicio de sesión`;
+
+    // P&L Hoy
+    const dp = fmtPnl(daily.pnl_usdt);
+    $('card-pnl-daily').textContent = dp.text;
+    $('card-pnl-daily').className = `value font-mono ${dp.cls}`;
+    const dailyDate = daily.date ? ` · ${daily.date}` : '';
+    $('card-pnl-daily-sub').textContent = `saldo inicial ${fmt(daily.start_balance)}${dailyDate}`;
+
+    // Win Rate
+    const trades  = sess.trades  || 0;
+    const wins    = sess.wins    || 0;
+    const losses  = sess.losses  || 0;
+    const wr      = trades > 0 ? (wins / trades * 100) : 0;
+    $('card-winrate').textContent = `${fmt(wr, 1)}%`;
+    $('card-winrate').className = `value font-mono ${wr >= 50 ? 'text-green' : wr > 0 ? 'text-red' : ''}`;
+    $('card-wr-sub').textContent = `W:${wins} / L:${losses}  ·  ${trades} trades`;
+  }
+
+  function renderPositions(data) {
+    const positions = data.positions || {};
+    const livePos   = (data.live || {}).open_positions || {};
+    const body      = $('positions-body');
+
+    const keys = Object.keys(livePos).length ? Object.keys(livePos) : Object.keys(positions);
+
+    if (keys.length === 0) {
+      body.innerHTML = '<div class="empty-state">Sin posiciones abiertas</div>';
+      $('pos-count').textContent = '';
+      return;
+    }
+
+    $('pos-count').textContent = `(${keys.length})`;
+
+    const rows = keys.map(pair => {
+      const lp  = livePos[pair]   || {};
+      const sp  = positions[pair] || {};
+      const entry   = lp.entry_price   || sp.entry_price || 0;
+      const current = lp.current_price || 0;
+      const qty     = lp.qty || sp.qty || 0;
+      const unreal  = lp.unrealized;
+      const sl      = sp.sl || 0;
+      const tp      = sp.tp || 0;
+
+      // Progress: how far is current between SL and TP
+      let progress = 50;
+      let barColor = '#58a6ff';
+      if (sl && tp && tp !== sl) {
+        progress = Math.max(0, Math.min(100, (current - sl) / (tp - sl) * 100));
+        barColor = progress >= 50 ? '#3fb950' : '#f85149';
+      }
+
+      const ur = fmtPnl(unreal);
+      const urText = lp.unrealized_str || ur.text;
+      const urCls  = (unreal === undefined || unreal === null)
+        ? '' : Number(unreal) >= 0 ? 'text-green' : 'text-red';
+
+      return `
+      <tr>
+        <td><span class="pair-label">${pair}</span></td>
+        <td class="font-mono">${fmt(entry, 4)}</td>
+        <td class="font-mono">${current ? fmt(current, 4) : '—'}</td>
+        <td class="font-mono">${fmt(qty, 4)}</td>
+        <td class="font-mono ${urCls}">${urText}</td>
+        <td class="font-mono text-red">${fmt(sl, 4)}</td>
+        <td class="font-mono text-green">${fmt(tp, 4)}</td>
+        <td style="min-width:80px">
+          <div class="sl-tp-bar">
+            <div class="fill" style="width:${progress}%;background:${barColor}"></div>
+          </div>
+          <div style="font-size:0.65rem;color:var(--muted);margin-top:2px;text-align:center">${fmt(progress, 0)}%</div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `
+    <div class="table-responsive">
+      <table class="table-dark-custom">
+        <thead>
+          <tr>
+            <th>Par</th>
+            <th>Entrada</th>
+            <th>Actual</th>
+            <th>Qty</th>
+            <th>No realizado</th>
+            <th>SL</th>
+            <th>TP</th>
+            <th>SL→TP</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  function renderHistory(data) {
+    const history = (data.history || []).slice().reverse().slice(0, 20);
+    const body    = $('history-body');
+
+    if (history.length === 0) {
+      body.innerHTML = '<div class="empty-state">Sin trades registradas</div>';
+      return;
+    }
+
+    const rows = history.map((t, i) => {
+      const isWin  = t.result === 'WIN';
+      const badge  = isWin
+        ? '<span class="badge-win">WIN</span>'
+        : '<span class="badge-loss">LOSS</span>';
+      const pnlCls = isWin ? 'text-green' : 'text-red';
+      const sign   = t.pnl >= 0 ? '+' : '';
+      const pctChg = t.entry ? pct(t.exit, t.entry) : null;
+
+      return `
+      <tr>
+        <td>${badge}</td>
+        <td><span class="pair-label">${t.pair || '—'}</span></td>
+        <td class="font-mono">${fmt(t.entry, 4)}</td>
+        <td class="font-mono">${fmt(t.exit, 4)}</td>
+        <td class="font-mono ${pnlCls}">${sign}${fmt(t.pnl, 4)} USDT</td>
+        <td class="font-mono ${pnlCls}">${fmtPct(pctChg)}</td>
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `
+    <div class="table-responsive">
+      <table class="table-dark-custom">
+        <thead>
+          <tr>
+            <th>Resultado</th>
+            <th>Par</th>
+            <th>Entrada</th>
+            <th>Salida</th>
+            <th>P&amp;L</th>
+            <th>% Cambio</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  /* ── Main refresh loop ───────────────────────────────────── */
+  async function refresh() {
+    try {
+      const resp = await fetch('/api/data');
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      renderMetrics(data);
+      renderPositions(data);
+      renderHistory(data);
+
+      // Mark as running
+      const badge = $('status-badge');
+      badge.textContent = '● RUNNING';
+      badge.style.color = 'var(--green)';
+      badge.style.borderColor = 'var(--green)';
+      badge.style.background = 'rgba(63,185,80,0.15)';
+    } catch (err) {
+      const badge = $('status-badge');
+      badge.textContent = '● OFFLINE';
+      badge.style.color = 'var(--red)';
+      badge.style.borderColor = 'var(--red)';
+      badge.style.background = 'rgba(248,81,73,0.15)';
+      console.warn('Dashboard refresh error:', err);
+    }
+  }
+
+  // Initial load + periodic refresh
+  refresh();
+  setInterval(refresh, 3000);
+</script>
+</body>
+</html>

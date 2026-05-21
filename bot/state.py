@@ -125,6 +125,28 @@ def record_trade() -> None:
     _save(state)
 
 
+# ── Live state (for dashboard) ────────────────────────────────────────────────
+
+def update_live(
+    balance: float,
+    capital: float,
+    open_positions: dict,
+    last_signal_count: int,
+) -> None:
+    """Write live runtime data so the dashboard can read it without Binance access."""
+    from datetime import datetime  # local import to avoid top-level cost
+
+    state = _load()
+    state["live"] = {
+        "balance":           balance,
+        "capital":           capital,
+        "open_positions":    open_positions,
+        "last_signal_count": last_signal_count,
+        "last_update":       datetime.now().isoformat(timespec="seconds"),
+    }
+    _save(state)
+
+
 def check_daily_limit(current_balance: float, limit_pct: float) -> bool:
     state = _load()
     daily = state.get("daily", {})
