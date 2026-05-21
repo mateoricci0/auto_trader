@@ -71,14 +71,19 @@ def _print_account_summary(client: Client) -> float:
     return balance
 
 
-def run(api_key: str, api_secret: str, deepseek_key: str = "") -> None:
+def run(api_key: str, api_secret: str, deepseek_key: str = "", trading_capital: float = 500.0) -> None:
     ai_brain.init(deepseek_key)
+
+    # Aplicar el capital elegido por el usuario
+    import bot.config as _cfg
+    _cfg.TRADING_CAPITAL = trading_capital
 
     logger.info("=" * 55)
     logger.info("  AUTO_TRADER BOT — Binance Testnet")
     logger.info("  Pares: %d | Timeframe: %s | Intervalo: %ds",
                 len(PAIRS), TIMEFRAME, LOOP_SECONDS)
     logger.info("  Cerebro: %s", "DeepSeek AI" if ai_brain.is_available() else "reglas técnicas")
+    logger.info("  Capital: %.2f USDT", trading_capital)
     logger.info("=" * 55)
 
     client = Client(api_key, api_secret, testnet=True)
