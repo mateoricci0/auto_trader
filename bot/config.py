@@ -19,7 +19,7 @@ MAX_PER_CORR_GROUP = 1
 TRADING_CAPITAL = 500.0   # USDT — equivale a ~500 €
 
 # ── Timeframe ────────────────────────────────────────────────────────────────
-TIMEFRAME     = "15m"     # 15 minutos — movimientos más significativos
+TIMEFRAME     = "1m"      # 1 minuto
 CANDLES_LIMIT = 200       # 200 velas de historia
 
 # ── Indicadores ──────────────────────────────────────────────────────────────
@@ -29,8 +29,8 @@ RSI_PERIOD = 14
 ATR_PERIOD = 14
 
 # ── Calidad de señal ─────────────────────────────────────────────────────────
-MIN_SL_DISTANCE_PCT = 0.0008  # SL mínimo 0.08% bajo el precio de entrada
-MIN_TP_DISTANCE_PCT = 0.003   # TP mínimo 0.3% sobre el precio de entrada
+MIN_SL_DISTANCE_PCT = 0.0001  # SL mínimo 0.01% (permisivo para 1m)
+MIN_TP_DISTANCE_PCT = 0.0002  # TP mínimo 0.02% (permisivo para 1m)
 MIN_RR_RATIO        = 1.5     # TP debe ser ≥ 1.5× la distancia al SL
 MIN_CONFIDENCE      = 0.60    # Descartar señales de baja convicción
 
