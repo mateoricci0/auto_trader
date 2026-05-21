@@ -290,7 +290,13 @@
 
   <!-- Open Positions -->
   <div class="section-card mb-3">
-    <div class="section-title">Posiciones Abiertas <span class="ms-1 text-blue" id="pos-count"></span></div>
+    <div class="section-title d-flex align-items-center justify-content-between">
+      <span>Posiciones Abiertas <span class="ms-1 text-blue" id="pos-count"></span></span>
+      <button id="btn-close-all" onclick="closeAll()"
+        style="background:#b91c1c;border:1px solid #f85149;color:#fff;font-size:0.75rem;padding:4px 14px;border-radius:6px;cursor:pointer;font-weight:600;letter-spacing:0.03em;">
+        Cerrar todo
+      </button>
+    </div>
     <div id="positions-body">
       <div class="empty-state">Sin posiciones abiertas</div>
     </div>
@@ -577,6 +583,39 @@
   // Initial load + periodic refresh
   refresh();
   setInterval(refresh, 3000);
+
+  /* ── Close all positions ─────────────────────────────────── */
+  async function closeAll() {
+    if (!confirm('¿Cerrar TODAS las posiciones ahora?\nEsta acción enviará órdenes de venta al mercado.')) return;
+    const btn = $('btn-close-all');
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+    try {
+      const resp = await fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cmd: 'close_all' }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        btn.textContent = 'Enviado ✓';
+        btn.style.background = '#166534';
+        setTimeout(() => {
+          btn.textContent = 'Cerrar todo';
+          btn.style.background = '#b91c1c';
+          btn.disabled = false;
+        }, 4000);
+      } else {
+        alert('Error: ' + (data.msg || 'Respuesta desconocida'));
+        btn.textContent = 'Cerrar todo';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      alert('Error de red: ' + err.message);
+      btn.textContent = 'Cerrar todo';
+      btn.disabled = false;
+    }
+  }
 </script>
 </body>
 </html>

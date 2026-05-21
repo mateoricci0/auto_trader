@@ -68,21 +68,22 @@ def analyze_all(pairs_data: list[dict]) -> list[dict]:
 
 Be selective but active — look for 1-3 good setups. Not every cycle will have trades, but don't be overly conservative.
 
-GOAL: Find 1-3 momentum trades with clear direction. Target 0.3-1% profit per trade.
+GOAL: Find 1-3 momentum trades with strong direction. Target 0.5-2% profit per trade. Set ambitious TPs at real resistance levels, not minimal ones.
 
 BUY criteria:
 1. Price above EMA9 and EMA21 (uptrend confirmed)
 2. RSI between 40 and 70 (has momentum, not extreme)
 3. Stop Loss below recent support, at least 0.2% below entry
-4. Take Profit at next resistance, minimum 0.3% above entry
-5. Risk/Reward at least 1.5:1
-6. Some volume behind the move
+4. Take Profit at the NEXT MAJOR resistance, minimum 0.5% above entry — prefer 1-2% when the chart supports it
+5. Risk/Reward at least 2.0:1 (aim for 3:1 when possible)
+6. Strong volume confirming the move
 
 SKIP when:
 - Price clearly ranging with no direction
 - RSI above 72 (very overbought) or below 35 (downtrend)
 - No identifiable support/resistance for SL/TP placement
-- Risk/reward below 1.5:1
+- Risk/reward below 2.0:1
+- TP would be less than 0.5% above entry
 
 Market data:
 {market_block}
@@ -100,7 +101,7 @@ If no good setups exist: {{"trades": []}}"""
                 {"role": "user",   "content": user_prompt},
             ],
             temperature=0.2,
-            max_tokens=400,
+            max_tokens=600,
         )
         raw = response.choices[0].message.content.strip()
 

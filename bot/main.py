@@ -149,6 +149,12 @@ def run(api_key: str, api_secret: str, deepseek_key: str = "", trading_capital: 
             cycle += 1
             logger.info("─── Ciclo %d — %s ───", cycle, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+            # Ejecutar comandos manuales del dashboard
+            cmd = state.pop_command()
+            if cmd == "close_all":
+                logger.info("Comando del dashboard: cerrando todas las posiciones.")
+                close_all_positions(client)
+
             try:
                 _print_account_summary(client)
                 signals = scan(client)

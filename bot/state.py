@@ -147,6 +147,22 @@ def update_live(
     _save(state)
 
 
+def set_command(cmd: str) -> None:
+    """Escribe un comando para que el bot lo ejecute en el próximo ciclo."""
+    state = _load()
+    state["command"] = cmd
+    _save(state)
+
+
+def pop_command() -> str | None:
+    """Lee y elimina el comando pendiente. Devuelve None si no hay ninguno."""
+    state = _load()
+    cmd = state.pop("command", None)
+    if cmd:
+        _save(state)
+    return cmd
+
+
 def check_daily_limit(current_balance: float, limit_pct: float) -> bool:
     state = _load()
     daily = state.get("daily", {})

@@ -6,7 +6,7 @@ import json
 import logging
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +81,16 @@ def api_data():
         }
 
     return jsonify(state)
+
+
+@app.route("/api/command", methods=["POST"])
+def api_command():
+    cmd = request.json.get("cmd", "")
+    if cmd in ("close_all",):
+        from bot import state as _state
+        _state.set_command(cmd)
+        return jsonify({"ok": True, "msg": f"Comando '{cmd}' enviado al bot."})
+    return jsonify({"ok": False, "msg": "Comando desconocido."}), 400
 
 
 def start_dashboard(host: str = "0.0.0.0", port: int = 5000) -> None:
