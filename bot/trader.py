@@ -274,8 +274,8 @@ def run_cycle(client: Client, signals: list[Signal]) -> None:
     open_pos = get_open_positions(client)
     n_open   = len(open_pos)
 
-    logger.info("Posiciones abiertas (propias): %d/%d | Saldo: %.2f USDT",
-                n_open, MAX_OPEN_POSITIONS, balance)
+    logger.info("Posiciones abiertas (propias): %d/%d | Capital operativo: %.2f USDT",
+                n_open, MAX_OPEN_POSITIONS, capital)
     for pair, pos in open_pos.items():
         logger.info("  %s: %.6f (≈%.2f USDT) | entrada=%.4f",
                     pair, pos["qty"], pos["value_usdt"], pos["entry_price"])

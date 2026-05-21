@@ -31,11 +31,12 @@ LOOP_SECONDS = _INTERVAL_MAP.get(TIMEFRAME, 900)
 
 
 def _print_account_summary(client: Client) -> float:
+    import bot.config as _cfg
     balance  = _get_balance_usdt(client)
+    capital  = _cfg.TRADING_CAPITAL
     sess     = state.get_session_stats()
     open_pos = get_open_positions(client)
 
-    start_bal   = sess.get("start_balance", balance)
     session_pnl = sess.get("gross_pnl", 0.0)
     daily_pnl   = state.get_daily_pnl()
     trades      = sess.get("trades", 0)
@@ -43,19 +44,22 @@ def _print_account_summary(client: Client) -> float:
     losses      = sess.get("losses", 0)
     win_rate    = (wins / trades * 100) if trades > 0 else 0.0
 
-    open_value = sum(p["value_usdt"] for p in open_pos.values())
-    total_val  = balance + open_value
+    open_value   = sum(p["value_usdt"] for p in open_pos.values())
+    capital_used = min(open_value, capital)
+    capital_free = max(0.0, capital - capital_used)
+    capital_now  = capital + session_pnl   # capital inicial + ganancias/pérdidas
 
     sign_sess  = "+" if session_pnl >= 0 else ""
     sign_daily = "+" if daily_pnl  >= 0 else ""
 
     logger.info("┌─────────────────────────────────────────────┐")
-    logger.info("│  SALDO USDT libre:   %10.2f USDT         │", balance)
-    logger.info("│  Valor en posiciones:%10.2f USDT         │", open_value)
-    logger.info("│  TOTAL estimado:     %10.2f USDT         │", total_val)
+    logger.info("│  Capital asignado:   %10.2f USDT         │", capital)
+    logger.info("│  En posiciones:      %10.2f USDT         │", capital_used)
+    logger.info("│  Disponible:         %10.2f USDT         │", capital_free)
+    logger.info("│  Capital actual:     %10.2f USDT         │", capital_now)
     logger.info("│  P&L sesión:         %s%9.2f USDT         │", sign_sess, session_pnl)
     logger.info("│  P&L hoy:            %s%9.2f USDT         │", sign_daily, daily_pnl)
-    logger.info("│  Trades sesión: %d  (W:%d / L:%d  WR:%.0f%%)  │",
+    logger.info("│  Trades: %d  (W:%d / L:%d  WR:%.0f%%)            │",
                 trades, wins, losses, win_rate)
     logger.info("└─────────────────────────────────────────────┘")
 
