@@ -10,8 +10,8 @@ from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
 from . import state
-from .config import (DAILY_LOSS_LIMIT, MAX_OPEN_POSITIONS, MAX_POSITION_PCT,
-                     RISK_PER_TRADE, TRADING_CAPITAL)
+from . import config as _cfg
+from .config import DAILY_LOSS_LIMIT, MAX_OPEN_POSITIONS, MAX_POSITION_PCT, RISK_PER_TRADE
 from .scanner import Signal
 
 logger = logging.getLogger(__name__)
@@ -128,8 +128,8 @@ def enter_position(client: Client, signal: Signal) -> bool:
     Devuelve True si la entrada fue exitosa.
     """
     balance = _get_balance_usdt(client)
-    # Operar solo con TRADING_CAPITAL (el presupuesto asignado), no con todo el saldo
-    capital = min(TRADING_CAPITAL, balance)
+    # Operar solo con _cfg.TRADING_CAPITAL (el presupuesto asignado), no con todo el saldo
+    capital = min(_cfg.TRADING_CAPITAL, balance)
     if balance < 10:
         logger.warning("Saldo USDT insuficiente: %.2f", balance)
         return False
@@ -265,7 +265,7 @@ def run_cycle(client: Client, signals: list[Signal]) -> None:
     - Entra en las mejores señales hasta llenar MAX_OPEN_POSITIONS
     """
     balance = _get_balance_usdt(client)
-    capital = min(TRADING_CAPITAL, balance)
+    capital = min(_cfg.TRADING_CAPITAL, balance)
     state.init_daily(balance)
 
     if state.check_daily_limit(balance, DAILY_LOSS_LIMIT):
