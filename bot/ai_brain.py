@@ -68,19 +68,19 @@ def analyze_all(pairs_data: list[dict]) -> list[dict]:
 
 IMPORTANT: The most common correct answer is 0 trades. Only enter when the setup is exceptional.
 
-GOAL: Find trades with 1.5% to 3% profit potential. Small moves are useless.
+GOAL: Find trades with 0.5% to 2% profit potential on short timeframe candles.
 
 BUY criteria — ALL must be met:
 1. Price clearly above EMA9 AND EMA21 (confirmed uptrend on hourly chart)
 2. RSI between 45 and 65 (momentum building, not overbought)
 3. Stop Loss below clear support, minimum 0.5% below entry price
-4. Take Profit at clear resistance, MINIMUM 1.5% above entry (target 2-3%)
+4. Take Profit at clear resistance, MINIMUM 0.5% above entry (target 1-2%)
 5. Risk/Reward ratio MINIMUM 3:1 (TP distance ÷ SL distance ≥ 3)
 6. Volume confirming the move (not a fake breakout)
 7. Clear setup: breakout from consolidation, EMA bounce, or strong momentum candle
 
 DO NOT trade when:
-- Target would be less than 1.5% from entry (too small to matter)
+- Target would be less than 0.5% from entry (too small to matter)
 - Market is ranging/sideways with no clear direction
 - RSI above 65 (overbought, late entry) or below 45 (no momentum)
 - The move already happened — never chase a candle that ran

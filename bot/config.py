@@ -19,8 +19,8 @@ MAX_PER_CORR_GROUP = 1
 TRADING_CAPITAL = 500.0   # USDT — equivale a ~500 €
 
 # ── Timeframe ────────────────────────────────────────────────────────────────
-TIMEFRAME     = "1h"      # 1 hora — movimientos de 1.5-3% por trade
-CANDLES_LIMIT = 200       # 200 h ≈ 8 días de historia
+TIMEFRAME     = "1m"      # 1 minuto — escanea cada minuto
+CANDLES_LIMIT = 200       # 200 velas de historia
 
 # ── Indicadores ──────────────────────────────────────────────────────────────
 EMA_FAST   = 9
@@ -30,7 +30,7 @@ ATR_PERIOD = 14
 
 # ── Calidad de señal ─────────────────────────────────────────────────────────
 MIN_SL_DISTANCE_PCT = 0.005   # SL mínimo 0.5% bajo el precio de entrada
-MIN_TP_DISTANCE_PCT = 0.015   # TP mínimo 1.5% sobre el precio de entrada
+MIN_TP_DISTANCE_PCT = 0.005   # TP mínimo 0.5% sobre el precio de entrada
 MIN_RR_RATIO        = 2.5     # TP debe ser ≥ 2.5× la distancia al SL
 MIN_CONFIDENCE      = 0.70    # Descartar señales de baja convicción
 
