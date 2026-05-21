@@ -66,26 +66,23 @@ def analyze_all(pairs_data: list[dict]) -> list[dict]:
 
     user_prompt = f"""Analyze these {len(pairs_data)} crypto pairs ({TIMEFRAME} timeframe) and select AT MOST 2 for a BUY entry.
 
-IMPORTANT: The most common correct answer is 0 trades. Only enter when the setup is exceptional.
+Be selective but active — look for 1-3 good setups. Not every cycle will have trades, but don't be overly conservative.
 
-GOAL: Find trades with 0.5% to 2% profit potential on short timeframe candles.
+GOAL: Find 1-3 momentum trades with clear direction. Target 0.3-1% profit per trade.
 
-BUY criteria — ALL must be met:
-1. Price clearly above EMA9 AND EMA21 (confirmed uptrend on hourly chart)
-2. RSI between 45 and 65 (momentum building, not overbought)
-3. Stop Loss below clear support, minimum 0.5% below entry price
-4. Take Profit at clear resistance, MINIMUM 0.5% above entry (target 1-2%)
-5. Risk/Reward ratio MINIMUM 3:1 (TP distance ÷ SL distance ≥ 3)
-6. Volume confirming the move (not a fake breakout)
-7. Clear setup: breakout from consolidation, EMA bounce, or strong momentum candle
+BUY criteria:
+1. Price above EMA9 and EMA21 (uptrend confirmed)
+2. RSI between 40 and 70 (has momentum, not extreme)
+3. Stop Loss below recent support, at least 0.2% below entry
+4. Take Profit at next resistance, minimum 0.3% above entry
+5. Risk/Reward at least 1.5:1
+6. Some volume behind the move
 
-DO NOT trade when:
-- Target would be less than 0.5% from entry (too small to matter)
-- Market is ranging/sideways with no clear direction
-- RSI above 65 (overbought, late entry) or below 45 (no momentum)
-- The move already happened — never chase a candle that ran
-- Risk/reward worse than 3:1
-- You are uncertain — 0 trades is better than a bad trade
+SKIP when:
+- Price clearly ranging with no direction
+- RSI above 72 (very overbought) or below 35 (downtrend)
+- No identifiable support/resistance for SL/TP placement
+- Risk/reward below 1.5:1
 
 Market data:
 {market_block}
