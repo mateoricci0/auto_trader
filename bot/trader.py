@@ -265,6 +265,7 @@ def run_cycle(client: Client, signals: list[Signal]) -> None:
     - Entra en las mejores señales hasta llenar MAX_OPEN_POSITIONS
     """
     balance = _get_balance_usdt(client)
+    capital = min(TRADING_CAPITAL, balance)
     state.init_daily(balance)
 
     if state.check_daily_limit(balance, DAILY_LOSS_LIMIT):
