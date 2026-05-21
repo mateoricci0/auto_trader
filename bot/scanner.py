@@ -18,8 +18,8 @@ from binance.client import Client
 from . import ai_brain
 from .config import (ATR_PERIOD, CANDLES_LIMIT, CORR_GROUPS, EMA_FAST,
                      EMA_SLOW, MAX_PER_CORR_GROUP, MIN_CONFIDENCE,
-                     MIN_RR_RATIO, MIN_SL_DISTANCE_PCT, PAIRS, RSI_PERIOD,
-                     TIMEFRAME)
+                     MIN_RR_RATIO, MIN_SL_DISTANCE_PCT, MIN_TP_DISTANCE_PCT,
+                     PAIRS, RSI_PERIOD, TIMEFRAME)
 from .indicators import atr, ema, rsi
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,11 @@ def _validate_signal(price: float, sl: float, tp: float) -> str | None:
     if sl_dist_pct < MIN_SL_DISTANCE_PCT:
         return f"SL demasiado ajustado ({sl_dist_pct:.3%} < {MIN_SL_DISTANCE_PCT:.3%})"
 
-    rr = (tp - price) / (price - sl)
+    tp_dist_pct = (tp - price) / price
+    if tp_dist_pct < MIN_TP_DISTANCE_PCT:
+        return f"TP demasiado pequeño ({tp_dist_pct:.3%} < {MIN_TP_DISTANCE_PCT:.3%} — ganancia insuficiente)"
+
+    rr = tp_dist_pct / sl_dist_pct
     if rr < MIN_RR_RATIO:
         return f"R/R insuficiente ({rr:.2f} < {MIN_RR_RATIO})"
 

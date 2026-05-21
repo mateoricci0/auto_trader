@@ -10,7 +10,8 @@ from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
 from . import state
-from .config import DAILY_LOSS_LIMIT, MAX_OPEN_POSITIONS, MAX_POSITION_PCT, RISK_PER_TRADE
+from .config import (DAILY_LOSS_LIMIT, MAX_OPEN_POSITIONS, MAX_POSITION_PCT,
+                     RISK_PER_TRADE, TRADING_CAPITAL)
 from .scanner import Signal
 
 logger = logging.getLogger(__name__)
@@ -127,6 +128,8 @@ def enter_position(client: Client, signal: Signal) -> bool:
     Devuelve True si la entrada fue exitosa.
     """
     balance = _get_balance_usdt(client)
+    # Operar solo con TRADING_CAPITAL (el presupuesto asignado), no con todo el saldo
+    capital = min(TRADING_CAPITAL, balance)
     if balance < 10:
         logger.warning("Saldo USDT insuficiente: %.2f", balance)
         return False
@@ -134,16 +137,16 @@ def enter_position(client: Client, signal: Signal) -> bool:
     step_size, min_qty = _get_step_size(client, signal.pair)
     tick_size = _get_tick_size(client, signal.pair)
 
-    risk_usdt     = balance * RISK_PER_TRADE
+    risk_usdt     = capital * RISK_PER_TRADE
     risk_per_unit = signal.price - signal.sl
     if risk_per_unit <= 0:
         logger.warning("SL >= precio de entrada en %s — skip", signal.pair)
         return False
 
-    # Tamaño por riesgo, pero nunca más del MAX_POSITION_PCT del capital
-    qty_by_risk  = risk_usdt / risk_per_unit
-    qty_by_cap   = (balance * MAX_POSITION_PCT) / signal.price
-    quantity     = _round_qty(min(qty_by_risk, qty_by_cap), step_size)
+    # Tamaño por riesgo, limitado al MAX_POSITION_PCT del capital asignado
+    qty_by_risk = risk_usdt / risk_per_unit
+    qty_by_cap  = (capital * MAX_POSITION_PCT) / signal.price
+    quantity    = _round_qty(min(qty_by_risk, qty_by_cap), step_size)
 
     if quantity < min_qty:
         logger.warning("%s: cantidad %.6f < mínimo %.6f — skip", signal.pair, quantity, min_qty)
@@ -153,6 +156,12 @@ def enter_position(client: Client, signal: Signal) -> bool:
     if cost_usdt > balance * 0.99:
         logger.warning("%s: coste %.2f USDT supera el saldo disponible — skip", signal.pair, cost_usdt)
         return False
+
+    tp_pct = (signal.tp - signal.price) / signal.price * 100
+    sl_pct = (signal.price - signal.sl) / signal.price * 100
+    gain_est = (signal.tp - signal.price) * quantity
+    logger.info("%s | capital=%.0f USDT | riesgo=%.2f USDT | ganancia potencial=+%.2f USDT (TP +%.2f%% / SL -%.2f%%)",
+                signal.pair, capital, risk_usdt, gain_est, tp_pct, sl_pct)
 
     try:
         buy_order = client.order_market_buy(symbol=signal.pair, quantity=quantity)

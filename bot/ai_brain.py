@@ -68,21 +68,24 @@ def analyze_all(pairs_data: list[dict]) -> list[dict]:
 
 IMPORTANT: The most common correct answer is 0 trades. Only enter when the setup is exceptional.
 
+GOAL: Find trades with 1.5% to 3% profit potential. Small moves are useless.
+
 BUY criteria — ALL must be met:
-1. Price clearly above EMA9 AND EMA21 (confirmed uptrend)
-2. RSI between 45 and 65 (momentum without being overbought)
-3. Stop Loss placed below clear support, minimum 0.5% below entry
-4. Take Profit at clear resistance, minimum 3× the SL distance (R/R ≥ 3:1)
-5. Recent volume increasing (confirms the move)
-6. Clear technical reason: momentum continuation, EMA bounce, or volume breakout
+1. Price clearly above EMA9 AND EMA21 (confirmed uptrend on hourly chart)
+2. RSI between 45 and 65 (momentum building, not overbought)
+3. Stop Loss below clear support, minimum 0.5% below entry price
+4. Take Profit at clear resistance, MINIMUM 1.5% above entry (target 2-3%)
+5. Risk/Reward ratio MINIMUM 3:1 (TP distance ÷ SL distance ≥ 3)
+6. Volume confirming the move (not a fake breakout)
+7. Clear setup: breakout from consolidation, EMA bounce, or strong momentum candle
 
 DO NOT trade when:
-- Market looks choppy, ranging, or consolidating
-- RSI is above 65 (overbought) or below 45 (no momentum)
-- Stop loss would be less than 0.5% from entry
-- Risk/reward is worse than 3:1
-- The move has already run far (chasing)
-- You are unsure — if in doubt, HOLD
+- Target would be less than 1.5% from entry (too small to matter)
+- Market is ranging/sideways with no clear direction
+- RSI above 65 (overbought, late entry) or below 45 (no momentum)
+- The move already happened — never chase a candle that ran
+- Risk/reward worse than 3:1
+- You are uncertain — 0 trades is better than a bad trade
 
 Market data:
 {market_block}
