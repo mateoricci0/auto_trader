@@ -29,7 +29,7 @@ RSI_PERIOD = 14
 ATR_PERIOD = 14
 
 # ── Calidad de señal ─────────────────────────────────────────────────────────
-MIN_SL_DISTANCE_PCT = 0.002   # SL mínimo 0.2% bajo el precio de entrada
+MIN_SL_DISTANCE_PCT = 0.0008  # SL mínimo 0.08% bajo el precio de entrada
 MIN_TP_DISTANCE_PCT = 0.003   # TP mínimo 0.3% sobre el precio de entrada
 MIN_RR_RATIO        = 1.5     # TP debe ser ≥ 1.5× la distancia al SL
 MIN_CONFIDENCE      = 0.60    # Descartar señales de baja convicción
