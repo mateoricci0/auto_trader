@@ -206,28 +206,49 @@ def close_all_positions(client: Client) -> None:
 
     logger.info("Cerrando %d posición(es)...", len(tracked))
     for pair, pos in list(tracked.items()):
-        # 1. Cancelar órdenes OCO pendientes
+        # 1. Cancelar órdenes abiertas una a una (cancel_open_orders no existe en esta versión)
         try:
-            client.cancel_open_orders(symbol=pair)
-            logger.info("Órdenes canceladas: %s", pair)
+            open_orders = client.get_open_orders(symbol=pair)
+            for order in open_orders:
+                try:
+                    client.cancel_order(symbol=pair, orderId=order["orderId"])
+                except Exception:
+                    pass
+            if open_orders:
+                logger.info("Órdenes canceladas: %s (%d)", pair, len(open_orders))
         except Exception as exc:
             logger.warning("No se pudieron cancelar órdenes de %s: %s", pair, exc)
 
-        # 2. Vender a mercado
+        # 2. Comprobar saldo real del activo antes de vender
+        step_size, min_qty = _get_step_size(client, pair)
+        base = pair.replace("USDT", "")
         try:
-            step_size, _ = _get_step_size(client, pair)
-            qty = _round_qty(pos["qty"], step_size)
-            client.order_market_sell(symbol=pair, quantity=qty)
-            logger.info("VENTA MERCADO %s | qty=%.6f", pair, qty)
+            account  = client.get_account()
+            balances = {b["asset"]: float(b["free"]) for b in account["balances"]}
+            real_qty = _round_qty(balances.get(base, 0.0), step_size)
+        except Exception:
+            real_qty = 0.0
 
-            # Calcular P&L
+        if real_qty < min_qty:
+            # OCO ya se ejecutó sola — solo limpiar estado
+            logger.info("%s: OCO ya ejecutada, limpiando estado.", pair)
+            exit_price = _get_exit_price(client, pair) or pos["entry_price"]
+            pnl = (exit_price - pos["entry_price"]) * pos["qty"]
+            state.record_closed_trade(pair, pos["entry_price"], exit_price, pos["qty"], pnl)
+            state.remove_position(pair)
+            continue
+
+        # 3. Vender a mercado
+        try:
+            client.order_market_sell(symbol=pair, quantity=real_qty)
+            logger.info("VENTA MERCADO %s | qty=%.6f", pair, real_qty)
             try:
                 ticker     = client.get_symbol_ticker(symbol=pair)
                 exit_price = float(ticker["price"])
             except Exception:
                 exit_price = pos["entry_price"]
-            pnl = (exit_price - pos["entry_price"]) * qty
-            state.record_closed_trade(pair, pos["entry_price"], exit_price, qty, pnl)
+            pnl = (exit_price - pos["entry_price"]) * real_qty
+            state.record_closed_trade(pair, pos["entry_price"], exit_price, real_qty, pnl)
         except Exception as exc:
             logger.error("Error vendiendo %s: %s", pair, exc)
 
